@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="RF 簡易計算機：天線涵蓋幾何、FSPL 與接收訊號強度估算。">
+  <title>RF 簡易計算機</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+TC:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">RF</div>
+        <div><strong>RF 簡易計算機</strong><span>RADIO FREQUENCY TOOL</span></div>
+      </div>
+
+      <section class="side-section">
+        <div class="section-heading"><span class="step">01</span><div><h2>輸入參數</h2><p>設定基地台與涵蓋條件</p></div></div>
+        <form id="rf-form">
+          <div class="field">
+            <label for="antenna-height">天線高度</label>
+            <div class="input-unit">
+              <input id="antenna-height" type="number" min="0.01" step="any" value="90" required>
+              <select id="height-unit" aria-label="天線高度單位"><option value="m">公尺 (m)</option><option value="km">公里 (km)</option></select>
+            </div>
+          </div>
+          <div class="field">
+            <label for="target-distance">目標物水平距離</label>
+            <div class="input-unit">
+              <input id="target-distance" type="number" min="0.01" step="any" value="300" required>
+              <select id="distance-unit" aria-label="目標物距離單位"><option value="m">公尺 (m)</option><option value="km">公里 (km)</option></select>
+            </div>
+            <small>以基地台正下方至目標物的地面水平距離計算</small>
+          </div>
+          <div class="field">
+            <label for="beamwidth">天線垂直波束角</label>
+            <div class="input-unit">
+              <input id="beamwidth" type="number" min="0.01" max="179" step="any" value="7" required>
+              <span class="unit-static">度 (°)</span>
+            </div>
+          </div>
+          <div class="field">
+            <label for="tx-power">RRU 發射功率</label>
+            <div class="input-unit">
+              <input id="tx-power" type="number" min="0.000001" step="any" value="60" required>
+              <select id="tx-power-unit" aria-label="發射功率單位"><option value="W">瓦特 (W)</option><option value="dBm">dBm</option></select>
+            </div>
+          </div>
+          <div class="field">
+            <label for="antenna-gain">天線增益</label>
+            <div class="input-unit">
+              <input id="antenna-gain" type="number" step="any" value="17">
+              <span class="unit-static">dBi</span>
+            </div>
+          </div>
+          <div class="field">
+            <label for="cable-loss">Cable Loss</label>
+            <div class="input-unit">
+              <input id="cable-loss" type="number" min="0" step="any" value="2">
+              <span class="unit-static">dB</span>
+            </div>
+          </div>
+          <div class="field">
+            <label>計算頻段</label>
+            <div class="frequency-inputs">
+              <label><input type="checkbox" name="frequency" value="700" checked><span>700</span></label>
+              <label><input type="checkbox" name="frequency" value="1800" checked><span>1800</span></label>
+              <label><input type="checkbox" name="frequency" value="2100" checked><span>2100</span></label>
+              <label><input type="checkbox" name="frequency" value="2600" checked><span>2600</span></label>
+            </div>
+          </div>
+          <button class="calculate-button" type="submit"><span>計算 RF 參數</span><span aria-hidden="true">↗</span></button>
+          <p id="form-error" class="form-error" role="alert"></p>
+        </form>
+      </section>
+      
+    </aside>
+
+    <main class="main-content">
+      <header class="topbar">
+        <div><div class="eyebrow">RADIO PLANNING / TOOLKIT</div><h1>涵蓋範圍與鏈路預估</h1><p>快速估算天線幾何、自由空間路徑損耗與接收功率。</p></div>
+        <div class="topbar-tag">RF CALCULATOR <span>V1.0</span></div>
+      </header>
+
+      <section class="visual-card">
+        <div class="card-heading"><div><span class="eyebrow">01 / ANTENNA GEOMETRY</span><h2>天線涵蓋示意圖</h2></div><span class="live-label"><i></i> 即時更新</span></div>
+        <div class="diagram-wrap">
+          <svg id="coverage-diagram" viewBox="0 0 900 390" role="img" aria-label="基地台天線、目標物與垂直波束涵蓋範圍示意圖">
+            <defs>
+              <linearGradient id="beamFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#3b82f6" stop-opacity=".19"/><stop offset="100%" stop-color="#3b82f6" stop-opacity=".025"/></linearGradient>
+              <marker id="arrow" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto"><path d="M0 0 L6 3 L0 6" fill="none" stroke="#64748b" stroke-width="1"/></marker>
+            </defs>
+            <g class="grid-lines"><path d="M45 70H855 M45 140H855 M45 210H855 M45 280H855"/></g>
+            <line x1="45" y1="300" x2="855" y2="300" class="ground"/>
+            <g id="tower" transform="translate(115 300)">
+              <path d="M0 0 L44 -225 L88 0 M11 -55H77 M20 -105H68 M29 -155H59 M0 0L88 0 M11 -55L68 -105L20 -105L77 -55 M20 -105L59 -155L29 -155L68 -105 M29 -155L44 -225L59 -155 M11 -55L77 -155 M77 -55L11 -155 M20 -105L68 -225 M68 -105L20 -225" class="tower-line"/>
+              <path d="M44 -225V-246" class="tower-line"/>
+              <rect x="38" y="-253" width="12" height="29" rx="3" class="antenna"/>
+            </g>
+            <text x="159" y="28" class="diagram-label">TX / 基地台</text>
+            <g id="beam-shape"><path id="beam-area" d="" fill="url(#beamFill)"/><line id="beam-upper" class="beam-edge upper"/><line id="beam-lower" class="beam-edge lower"/></g>
+            <line id="center-ray" class="center-ray"/>
+            <line id="target-ray" class="target-ray" marker-end="url(#arrow)"/>
+            <line id="target-post" class="target-post"/>
+            <line id="near-marker" class="range-marker"/>
+            <line id="far-marker" class="range-marker"/>
+            <circle id="tx-point" r="5" class="point tx-point"/>
+            <circle id="target-point" r="5" class="point target-point"/>
+            <text id="target-label" class="diagram-label">目標物 / RX</text>
+            <text id="near-label" class="range-label">涵蓋起點</text>
+            <text id="far-label" class="range-label">涵蓋終點</text>
+            <text id="center-angle-label" class="angle-label">中心傾角</text>
+            <text x="850" y="326" text-anchor="end" class="axis-label">水平地面</text>
+          </svg>
+        </div>
+        <div class="diagram-legend"><span><i class="legend-blue"></i>垂直波束範圍</span><span><i class="legend-red"></i>中心方向</span><span><i class="legend-gray"></i>目標物直線距離</span></div>
+      </section>
+
+      <section class="metrics-grid" aria-label="幾何計算結果">
+        <article class="metric-card primary"><div class="metric-top"><span>天線至目標直線距離</span><span class="metric-icon">↗</span></div><strong id="out-slant">—</strong><small>SLANT DISTANCE</small></article>
+        <article class="metric-card"><div class="metric-top"><span>中心頻點傾角</span><span class="metric-icon">⌁</span></div><strong id="out-center-angle">—</strong><small>CENTER ANGLE</small></article>
+        <article class="metric-card"><div class="metric-top"><span>天線機械/電調下傾角估算</span><span class="metric-icon">⌄</span></div><strong id="out-tilt">—</strong><small>DOWN TILT</small></article>
+        <article class="metric-card"><div class="metric-top"><span>水平涵蓋範圍</span><span class="metric-icon">↔</span></div><strong id="out-coverage">—</strong><small>COVERAGE WIDTH</small></article>
+      </section>
+
+      <section class="results-card">
+        <div class="card-heading"><div><span class="eyebrow">02 / COVERAGE BOUNDARY</span><h2>波束涵蓋邊界</h2></div><div class="unit-switch"><label for="distance-output-unit">距離顯示</label><select id="distance-output-unit"><option value="m">公尺 (m)</option><option value="km">公里 (km)</option></select></div></div>
+        <div class="boundary-grid">
+          <div><span>最大涵蓋角度</span><strong id="out-max-angle">—</strong></div>
+          <div><span>最小涵蓋角度</span><strong id="out-min-angle">—</strong></div>
+          <div><span>涵蓋距離起點（近端）</span><strong id="out-near-distance">—</strong></div>
+          <div><span>涵蓋距離終點（遠端）</span><strong id="out-far-distance">—</strong></div>
+        </div>
+      </section>
+
+      <section class="results-card">
+        <div class="card-heading"><div><span class="eyebrow">03 / LINK BUDGET</span><h2>FSPL 與接收訊號強度</h2><p class="card-description">最佳接收功率位於涵蓋近端；最差接收功率位於涵蓋遠端。</p></div><div class="unit-switch"><label for="power-output-unit">功率顯示</label><select id="power-output-unit"><option value="dBm">dBm</option><option value="W">瓦特 (W)</option></select></div></div>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>頻率</th><th>FSPL 近端</th><th>FSPL 遠端</th><th>最佳接收功率</th><th>最差接收功率</th></tr></thead>
+            <tbody id="rf-results"><tr><td colspan="5" class="empty-state">輸入參數後，按下「計算 RF 參數」查看結果。</td></tr></tbody>
+          </table>
+        </div>
+        <div class="formula-note"><strong>計算模型</strong><span>FSPL = 32.44 + 20log₁₀(d km) + 20log₁₀(f MHz)</span><span>Pr = Ptx(dBm) + Gantenna(dBi) − Cable Loss(dB) − FSPL(dB)</span></div>
+      </section>
+      <footer class="page-footer">RF CALCULATOR <span>僅供初步鏈路估算，實際涵蓋仍受地形、建物、天線方向圖、饋線及干擾影響。</span></footer>
+    </main>
+  </div>
+</body>
+</html>
